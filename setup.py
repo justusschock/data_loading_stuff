@@ -34,15 +34,15 @@ requirements = resolve_requirements(os.path.join(os.path.dirname(__file__),
 
 readme = read_file(os.path.join(os.path.dirname(__file__), "README.md"))
 license = read_file(os.path.join(os.path.dirname(__file__), "LICENSE"))
-_version = find_version(os.path.join(os.path.dirname(__file__), "template-repo",
+_version = find_version(os.path.join(os.path.dirname(__file__), "data_loading",
                                            "__init__.py"))
 
 
 setup(
-    name='template_package',
+    name='data_loading',
     version=_version,
     packages=find_packages(),
-    url='https://github.com/justusschock/template-repo-python',
+    url='https://github.com/justusschock/data_loading_stuff',
     test_suite="unittest",
     long_description=readme,
     long_description_content_type='text/markdown',
@@ -51,5 +51,5 @@ setup(
     python_requires=">=3.5",
     author="Justus Schock",
     author_email="justus.schock@rwth-aachen.de",
-    license=license,
+    license="MIT",
 )
