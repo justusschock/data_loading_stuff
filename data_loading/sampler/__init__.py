@@ -6,3 +6,4 @@ from .sequential_sampler import SequentialSampler, \
     PerClassSequentialSampler, StoppingPerClassSequentialSampler
 from .weighted_sampler import WeightedRandomSampler, \
     WeightedPrevalenceRandomSampler
+from .batch_sampler import BatchSampler
