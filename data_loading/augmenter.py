@@ -8,6 +8,7 @@ import random
 
 from data_loading.sampler import AbstractSampler, BatchSampler
 from data_loading.data_loader import DataLoader
+from delira import get_current_debug_mode
 
 
 class _WorkerProcess(multiprocessing.Process):
@@ -82,7 +83,7 @@ class _WorkerProcess(multiprocessing.Process):
             raise e
 
 
-class Augmenter(object):
+class AbstractAugmenter(object):
     """
     Basic Augmenter Class providing a general Augmenter API
     """
@@ -132,7 +133,7 @@ class Augmenter(object):
         raise NotImplementedError
 
 
-class ParallelAugmenter(Augmenter):
+class _ParallelAugmenter(AbstractAugmenter):
     """
     An Augmenter that loads and augments multiple batches in parallel
     """
@@ -399,7 +400,7 @@ class ParallelAugmenter(Augmenter):
                 self._shutdown_processes()
 
 
-class SequentialAugmenter(Augmenter):
+class _SequentialAugmenter(AbstractAugmenter):
     """
     An Augmenter that loads and augments batches sequentially without any
     parallelism
@@ -441,3 +442,78 @@ class SequentialAugmenter(Augmenter):
                 data = self._transforms(**data)
 
             yield data
+
+
+class Augmenter(object):
+    """
+    The actual Augmenter wrapping the :class:`_SequentialAugmenter` and the
+    :class:`_ParallelAugmenter` and switches between them by arguments and
+    debug mode
+    """
+    def __init__(self, data_loader, sampler, num_processes=None,
+                 transforms=None, seed=1, drop_last=False):
+        """
+
+        Parameters
+        ----------
+        data_loader : :class:`DataLoader`
+            the dataloader, loading samples for given indices
+        sampler : :class:`AbstractSampler`
+            the sampler (may be batch sampler or usual sampler), defining the
+            actual sampling strategy; Is an iterable yielding indices
+        num_processes : int
+            the number of processes to use for dataloading + augmentation;
+            if None: the number of available CPUs will be used as number of
+            processes
+        transforms : :class:`collections.Callable`
+            the transforms to apply; defaults to None
+        seed : int
+            the basic seed; default: 1
+        drop_last : bool
+            whether to drop the last (possibly smaller) batch or not
+
+        """
+
+        self._augmenter = self._resolve_augmenter_cls(num_processes,
+                                                      data_loader=data_loader,
+                                                      sampler=sampler,
+                                                      transforms=transforms,
+                                                      seed=seed,
+                                                      drop_last=drop_last)
+
+    @staticmethod
+    def _resolve_augmenter_cls(num_processes, **kwargs):
+        """
+        Resolves the augmenter class by the number of specified processes and
+        the debug mode and creates an instance of the chosen class
+
+        Parameters
+        ----------
+        num_processes : int
+            the number of processes to use for dataloading + augmentation;
+            if None: the number of available CPUs will be used as number of
+            processes
+        **kwargs :
+            additional keyword arguments, used for instantiation of the chosen
+            class
+
+        Returns
+        -------
+        :class:`AbstractAugmenter`
+            an instance of the chosen augmenter class
+
+        """
+        if get_current_debug_mode() or num_processes == 0:
+            return _SequentialAugmenter(**kwargs)
+        return _ParallelAugmenter(num_processes=num_processes, **kwargs)
+
+    def __iter__(self):
+        """
+        Makes the Augmenter iterable by generators
+
+        Returns
+        -------
+        Generator
+            a generator function yielding the arguments
+        """
+        yield from self._augmenter
